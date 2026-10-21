@@ -1,0 +1,12 @@
+---
+layout: default
+---
+<div class="simple-page">
+  <header class="page-heading"><h1>Categories</h1></header>
+  {% assign sorted_categories = site.categories | sort %}
+  <ul class="term-list">
+    {% for category in sorted_categories %}
+      <li><a href="{{ '/categories/' | relative_url }}{{ category[0] | slugify }}/">{{ category[0] }}</a></li>
+    {% endfor %}
+  </ul>
+</div>

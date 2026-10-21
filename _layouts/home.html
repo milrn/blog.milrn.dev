@@ -1,0 +1,28 @@
+---
+layout: default
+---
+<section class="home-posts" aria-label="Posts">
+  <ol class="post-list">
+    {% for post in paginator.posts %}
+      {% include post-card.html post=post %}
+    {% endfor %}
+  </ol>
+  {% if paginator.total_pages > 1 %}
+  <nav class="pagination" aria-label="Post pages">
+    {% if paginator.previous_page %}<a class="pagination-step" href="{{ paginator.previous_page_path | relative_url }}">← Previous</a>{% endif %}
+    <div class="pagination-pages">
+      {% for page_number in (1..paginator.total_pages) %}
+        {% if page_number == paginator.page %}
+          <span aria-current="page">{{ page_number }}</span>
+        {% elsif page_number == 1 %}
+          <a href="{{ '/' | relative_url }}">{{ page_number }}</a>
+        {% else %}
+          {% assign numbered_path = site.paginate_path | replace: ':num', page_number %}
+          <a href="{{ numbered_path | relative_url }}">{{ page_number }}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% if paginator.next_page %}<a class="pagination-step" href="{{ paginator.next_page_path | relative_url }}">Next →</a>{% endif %}
+  </nav>
+  {% endif %}
+</section>

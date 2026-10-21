@@ -1,0 +1,36 @@
+---
+layout: default
+---
+<article class="article-page">
+  <header class="page-heading article-heading">
+    <time datetime="{{ page.date | date: '%Y-%m-%d' }}">{{ page.date | date: '%B %d, %Y' }}</time>
+    <h1>{{ page.title }}</h1>
+  </header>
+
+  <div class="prose">{{ content | media_paths: page.media_subpath }}</div>
+
+  <footer class="article-footer">
+    {% if page.tags.size > 0 %}
+    <div class="article-tags">
+      <span>Tags</span>
+      <ul class="tag-cloud">
+        {% for tag in page.tags %}
+          <li><a class="tag-chip" href="{{ '/tags/' | relative_url }}{{ tag | slugify }}/">{{ tag }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    <a href="{{ '/' | relative_url }}">← All posts</a>
+  </footer>
+</article>
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      processEscapes: true
+    },
+    options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
+  };
+</script>
+<script defer src="{{ '/assets/mathjax/tex-svg.js' | relative_url }}"></script>

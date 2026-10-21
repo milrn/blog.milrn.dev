@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="{{ site.lang | default: 'en' }}">
+  <head>
+    {% assign canonical_path = page.url | default: '/' %}
+    {% assign canonical_url = site.canonical_origin | append: canonical_path %}
+    {% assign social_title = page.title | default: site.title %}
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#151515">
+    <link rel="icon" type="image/svg+xml" href="{{ '/assets/img/favicons/favicon.svg' | relative_url }}">
+    <link rel="alternate" type="application/atom+xml" title="{{ site.title }} feed" href="{{ '/feed.xml' | relative_url }}">
+    <link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
+    <title>{{ site.title | escape }}</title>
+    <link rel="canonical" href="{{ canonical_url | escape }}">
+    {% if paginator.previous_page_path %}<link rel="prev" href="{{ site.canonical_origin }}{{ paginator.previous_page_path }}">{% endif %}
+    {% if paginator.next_page_path %}<link rel="next" href="{{ site.canonical_origin }}{{ paginator.next_page_path }}">{% endif %}
+    <meta name="author" content="{{ site.author | escape }}">
+    {% if page.description %}<meta name="description" content="{{ page.description | strip_html | escape }}">{% endif %}
+    <meta property="og:title" content="{{ social_title | escape }}">
+    {% if page.description %}<meta property="og:description" content="{{ page.description | strip_html | escape }}">{% endif %}
+    <meta property="og:url" content="{{ canonical_url | escape }}">
+    <meta property="og:site_name" content="{{ site.title | escape }}">
+    <meta property="og:type" content="{% if page.layout == 'post' %}article{% else %}website{% endif %}">
+    {% if page.date %}<meta property="article:published_time" content="{{ page.date | date_to_xmlschema }}">{% endif %}
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ social_title | escape }}">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header container">
+      <a class="site-title" href="{{ '/' | relative_url }}">milrn<span>.</span></a>
+      <nav aria-label="Main navigation">
+        <a href="{{ '/' | relative_url }}" {% if page.url == '/' or page.url contains '/page' %}aria-current="page"{% endif %}>Posts</a>
+        <a href="{{ '/categories/' | relative_url }}" {% if page.url contains '/categories/' %}aria-current="page"{% endif %}>Categories</a>
+        <a href="{{ '/archives/' | relative_url }}" {% if page.url == '/archives/' %}aria-current="page"{% endif %}>Archive</a>
+        <a href="{{ '/about/' | relative_url }}" {% if page.url == '/about/' %}aria-current="page"{% endif %}>About</a>
+      </nav>
+    </header>
+
+    <main id="main" class="container">{{ content }}</main>
+
+    <footer class="site-footer container">
+      <span>© {{ 'now' | date: '%Y' }} milrn</span>
+      <a href="{{ '/feed.xml' | relative_url }}">RSS</a>
+    </footer>
+  </body>
+</html>
