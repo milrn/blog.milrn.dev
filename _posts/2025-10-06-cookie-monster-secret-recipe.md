@@ -36,7 +36,7 @@ I tried the test credentials "cookie, cookie" while inspecting network requests.
 
 # Getting the Flag
 
-When inspecting the request sent to the server, I noticed that there was a "secret_recipe" cookie being attached. This cookie immediately looked base64 encoded, so I tried to decode it using the base64 command.
+When inspecting the request sent to the server, I noticed that there was a "secret_recipe" cookie being attached. This cookie immediately looked base64 encoded, so I tried to decode it using the `base64` command.
 
 ```
 echo 'cGljb0NURntjMDBrMWVfbTBuc3Rlcl9sMHZlc19jMDBraWVzXzQ3MzZGNkNCfQ==' | base64 -d

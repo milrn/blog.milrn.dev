@@ -56,7 +56,7 @@ Priority: u=1, i
 {"errors":[{"message":"GraphQL introspection is not allowed by Apollo Server, but the query contained __schema or __type. To enable introspection, pass introspection: true to ApolloServer in production","locations":[{"line":2,"column":5}],"extensions":{"validationErrorCode":"INTROSPECTION_DISABLED","code":"GRAPHQL_VALIDATION_FAILED"}}]}
 ```
 
-From there, the intended path is to use some sort of GraphQL fingerprinting tool, such as graphw00f.
+From there, the intended path is to use some sort of GraphQL fingerprinting tool, such as `graphw00f`.
 
 ```
 ┌──(kali㉿kali)-[~/tools/graphw00f]
@@ -104,7 +104,7 @@ Field suggestions can be used to leak mutations with non-standard names that dir
 
 ![](fieldsuggestiondemo.png)
 
-To fuzz for field suggestions, some type of GraphQL wordlist is needed. Personally, I used the mutation field wordlist from `https://github.com/Escape-Technologies/graphql-wordlist` as it is incredibly comprehensive. I set up ffuf arguments to include any bad responses and show any response sizes greater than 200 when fuzzing for mutations. This size filter is needed to only include the responses with the extra field suggestion tacked on.
+To fuzz for field suggestions, some type of GraphQL wordlist is needed. Personally, I used the mutation field wordlist from `https://github.com/Escape-Technologies/graphql-wordlist` as it is incredibly comprehensive. I set up `ffuf` arguments to include any bad responses and show any response sizes greater than 200 when fuzzing for mutations. This size filter is needed to only include the responses with the extra field suggestion tacked on.
 
 ```
 ┌──(kali㉿kali)-[~/tools]
@@ -165,11 +165,11 @@ updateImageMeta         [Status: 400, Size: 207, Words: 11, Lines: 2, Duration: 
 [WARN] Caught keyboard interrupt (Ctrl-C)
 ```
 
-When plugging in the updateSnippet mutation into a query, a recommendation for the updateStudentX mutation is made through field suggestions. This is an interesting new endpoint to explore.
+When plugging in the `updateSnippet` mutation into a query, a recommendation for the `updateStudentX` mutation is made through field suggestions. This is an interesting new endpoint to explore.
 
 ![](updatesnippet.png)
 
-Trying to call the updateStudentX mutation with the same resulting fields and arguments as the login mutation leads to a plethora of errors.
+Trying to call the `updateStudentX` mutation with the same resulting fields and arguments as the `login` mutation leads to a plethora of errors.
 ```
 mutation Login($username: String!, $password: String!) {
   updateStudentX(username: $username, password: $password) {
@@ -193,11 +193,11 @@ More resulting field enumeration can be done, but no other fields are returned. 
 
 ![](xpatherror.png)
 
-An assumption can be made that the XPath query is using the `username` argument in the query predicate to filter results. So, a simple '1'='1' payload can test to see if the server is vulnerable to Blind XPath Injection. In this case, that would only be possible if the server is executing queries despite returning an authentication-required message.
+An assumption can be made that the XPath query is using the `username` argument in the query predicate to filter results. So, a simple `'1'='1'` payload can test to see if the server is vulnerable to Blind XPath Injection. In this case, that would only be possible if the server is executing queries despite returning an authentication-required message.
 
 ![](blindxpath.png)
 
-Boom! This web application is really insecure, and the value of `ok` is true if the XPath query succeeds and results in a value of true. This means that the server is not doing any input filtering and is not correctly configured to send a blanket `false` response when no token is given. After verifying the Blind XPath Injection, a combination of the following XPath query functionality can be used to extract the entire XML document: `name(), substring(), string-length(), and count()`. More details on Blind XPath Injection can be found elsewhere but it's the exact same principle as a Blind SQL Injection. For this PoC, I used an automatic Blind XPath exfiltration tool called xcat, while providing a few application-specific arguments. The details of the script can be found within the comments.
+Boom! This web application is really insecure, and the value of `ok` is true if the XPath query succeeds and results in a value of true. This means that the server is not doing any input filtering and is not correctly configured to send a blanket `false` response when no token is given. After verifying the Blind XPath Injection, a combination of the following XPath query functionality can be used to extract the entire XML document: `name(), substring(), string-length(), and count()`. More details on Blind XPath Injection can be found elsewhere but it's the exact same principle as a Blind SQL Injection. For this PoC, I used an automatic Blind XPath exfiltration tool called `xcat`, while providing a few application-specific arguments. The details of the script can be found within the comments.
 
 ```
 import asyncio
@@ -261,11 +261,11 @@ Logging into the portal with those credentials gives the first flag.
 
 # Part 2
 
-Trying to use the `Upload MOTD` button results in failure. Users can attribute this to the disclaimer on the main page that says `This page is in an early beta with limited functionality available.` The upload functionality has not been added yet, but instead using the "upload" button seems to just pull an MOTD that is already on the host system and include it with the preview.php page. This is the classic setup for Local File Inclusion.
+Trying to use the `Upload MOTD` button results in failure. Users can attribute this to the disclaimer on the main page that says `This page is in an early beta with limited functionality available.` The upload functionality has not been added yet, but instead using the "upload" button seems to just pull an MOTD that is already on the host system and include it with the `preview.php` page. This is the classic setup for Local File Inclusion.
 
 ![](motdrequest.png)
 
-A classic LFI payload list such as LFI-Jhaddix.txt found in SecLists can be used to test for any working inclusion. Filtering out the default response size, the smallest payload able to successfully include /etc/passwd is `....//....//....//....//....//etc/passwd`. The use of double `..` and `/` is because the server is not recursively removing the `../` string to prevent LFI. It is only removing `../` in one pass which means LFI is still possible.
+A classic LFI payload list such as `LFI-Jhaddix.txt` found in SecLists can be used to test for any working inclusion. Filtering out the default response size, the smallest payload able to successfully include `/etc/passwd` is `....//....//....//....//....//etc/passwd`. The use of double `..` and `/` is because the server is not recursively removing the `../` string to prevent LFI. It is only removing `../` in one pass which means LFI is still possible.
 
 ```
 ┌──(kali㉿kali)-[~/tools]
@@ -315,11 +315,11 @@ ________________________________________________
 
 ![](lfi.png)
 
-Now, most people tried basic payloads to include the flag in responses from here, but none of that works because the flag file isn't named anything obvious on the host machine. The next logical step is to try to gain some sort of RCE. There are several ways to take advantage of LFI to help gain RCE, some sort of source code disclosure or RFI can definitely speed up the process. However, the application is not vulnerable to any of these due to backend protections (RFI plugs into a file path which will result in `Document not found.` and files with extensions other than .txt/no extension are blocked from inclusion: `This file type was blocked.`). There is a more niche technique to try though, log poisoning, which occurs when a log file can be filled with arbitrary PHP code and then be included and executed by the server. In my opinion the only really "guessy" part of this was trying to determine what log file to use. The regular /proc/self/fd/N trick doesn't work because the backend validates if a file exists before including it. However, session files can act as log files for certain inputs in certain scenarios, and in this challenge, this was the case (session poisoning). All files a user tries to view would be logged to the session file stored in the standard directory /var/lib/php/sessions. The session file itself follows the normal scheme `sess_<ID>`, where the ID can be found by simply looking at the PHPSESSID cookie. All of this can be easily verified as a player by making a request to include the file.
+Now, most people tried basic payloads to include the flag in responses from here, but none of that works because the flag file isn't named anything obvious on the host machine. The next logical step is to try to gain some sort of RCE. There are several ways to take advantage of LFI to help gain RCE, some sort of source code disclosure or RFI can definitely speed up the process. However, the application is not vulnerable to any of these due to backend protections (RFI plugs into a file path which will result in `Document not found.` and files with extensions other than .txt/no extension are blocked from inclusion: `This file type was blocked.`). There is a more niche technique to try though, log poisoning, which occurs when a log file can be filled with arbitrary PHP code and then be included and executed by the server. In my opinion the only really "guessy" part of this was trying to determine what log file to use. The regular `/proc/self/fd/N` trick doesn't work because the backend validates if a file exists before including it. However, session files can act as log files for certain inputs in certain scenarios, and in this challenge, this was the case (session poisoning). All files a user tries to view would be logged to the session file stored in the standard directory `/var/lib/php/sessions`. The session file itself follows the normal scheme `sess_<ID>`, where the ID can be found by simply looking at the `PHPSESSID` cookie. All of this can be easily verified as a player by making a request to include the file.
 
 ![](sessionfileinclusion.png)
 
-The previous queries were clearly logged in the file, so now all that's left is to submit commands to be executed. Listing the home directory revealed the andrew directory, and listing that revealed the flag file which could simply be read using cat. The payloads for this chain are below.
+The previous queries were clearly logged in the file, so now all that's left is to submit commands to be executed. Listing the home directory revealed the andrew directory, and listing that revealed the flag file which could simply be read using `cat`. The payloads for this chain are below.
 
 ```
 <?php system("ls /home/"); ?>

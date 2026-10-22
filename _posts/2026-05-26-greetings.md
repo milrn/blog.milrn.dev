@@ -54,9 +54,9 @@ int main() {
 }
 ```
 
-The greetings.c file is very small with a clear buffer overflow in uname. uname_size can be set to any value, and then that many bytes (plus 2) are used as the fgets read size into a 64-byte stack buffer.
+The `greetings.c` file is very small with a clear buffer overflow in `uname`. `uname_size` can be set to any value, and then that many bytes (plus 2) are used as the `fgets` read size into a 64-byte stack buffer.
 
-Before going any further, the amount of bytes to write to overflow the saved RIP can be calculated as follows:
+Before going any further, the amount of bytes to write to overflow the saved `RIP` can be calculated as follows:
 
 ```
 gef greetings
@@ -91,9 +91,9 @@ gef➤  pattern offset $rsp
 [+] Found at offset 72 (little-endian search) likely
 ```
 
-So, the saved RIP overwrite starts at 72 bytes.
+So, the saved `RIP` overwrite starts at 72 bytes.
 
-However, it's not possible to stash shellcode in uname and then directly set the saved RIP to uname because there are no stack leaks.
+However, it's not possible to stash shellcode in `uname` and then directly set the saved `RIP` to `uname` because there are no stack leaks.
 
 # rax
 
@@ -144,11 +144,11 @@ The solution to this unknown address problem is to use a gadget that jumps to a 
 0x000000000000111b : test rax, rax ; je 0x1128 ; jmp rax
 ```
 
-We have a few interesting gadgets here including `call rax` and `jmp rax`. rax is a special register because it holds function return values. At the end of the greetUser() function, fgets is called (which returns the destination pointer), so after fgets(uname, ...), rax holds &uname. As long as the username does not start with @, the printf("Greetings to you...") branch is skipped, so no extra call clobbers rax before returning. Then at function return, if RIP is redirected to jmp rax, for example, execution goes straight into shellcode in uname.
+We have a few interesting gadgets here including `call rax` and `jmp rax`. `rax` is a special register because it holds function return values. At the end of the `greetUser()` function, `fgets` is called (which returns the destination pointer), so after `fgets(uname, ...)`, `rax` holds `&uname`. As long as the username does not start with @, the `printf("Greetings to you...")` branch is skipped, so no extra call clobbers `rax` before returning. Then at function return, if `RIP` is redirected to `jmp rax`, for example, execution goes straight into shellcode in `uname`.
 
 # Bypassing PIE
 
-However, there is one more major issue before we can call the gadget: PIE. The binary base is randomized every run, so jmp rax is not at a fixed absolute address (only the 3 least significant nibbles are the same before and after PIE). The good part is a full RIP overwrite is not needed here. The normal return address is BASE + 0x1089, and the gadget we want is BASE + 0x10df, so most high bytes are already correct and only the least significant byte needs to change. Although, since fgets always needs a null terminator at the end, it's impossible to only fully control the least significant byte without overwriting the second least significant byte with \x00. In this case that's perfectly fine though because the third least significant nibble is a 0, which is fixed, and the fourth least significant nibble is a guess (randomized by PIE), which means 0 is also fine! This gives a 1/16 chance of overwriting the saved RIP with the correct gadget successfully. To achieve this, 72 bytes should be requested from the program as it will actually give a 74 byte write (with the +2). After the 72 bytes of padding are added, the 73rd byte should just be the fixed `0xdf`, and the 74th byte will be automatically overwritten with a null byte. Lastly, running this exploit multiple times will be needed because of the 1/16 chance.
+However, there is one more major issue before we can call the gadget: PIE. The binary base is randomized every run, so `jmp rax` is not at a fixed absolute address (only the 3 least significant nibbles are the same before and after PIE). The good part is a full `RIP` overwrite is not needed here. The normal return address is `BASE + 0x1089`, and the gadget we want is `BASE + 0x10df`, so most high bytes are already correct and only the least significant byte needs to change. Although, since `fgets` always needs a null terminator at the end, it's impossible to only fully control the least significant byte without overwriting the second least significant byte with `\x00`. In this case that's perfectly fine though because the third least significant nibble is a 0, which is fixed, and the fourth least significant nibble is a guess (randomized by PIE), which means 0 is also fine! This gives a 1/16 chance of overwriting the saved `RIP` with the correct gadget successfully. To achieve this, 72 bytes should be requested from the program as it will actually give a 74 byte write (with the +2). After the 72 bytes of padding are added, the 73rd byte should just be the fixed `0xdf`, and the 74th byte will be automatically overwritten with a null byte. Lastly, running this exploit multiple times will be needed because of the 1/16 chance.
 
 So far, the following PoC can be assembled:
 
@@ -175,9 +175,9 @@ for i in range(1000):
 
 # Shellcode
 
-Shellcode in uname has been constantly referenced throughout this writeup, but the basic payload: shellcraft.amd64.sh(), by itself won't actually work even when executed by jmp/call rax.
+Shellcode in `uname` has been constantly referenced throughout this writeup, but the basic payload: `shellcraft.amd64.sh()`, by itself won't actually work even when executed by jmp/call `rax`.
 
-This is because shellcraft.amd64.sh() uses a lot of "push" instructions and builds both the path string and argv pointers on the stack.
+This is because `shellcraft.amd64.sh()` uses a lot of "push" instructions and builds both the path string and argv pointers on the stack.
 
 Disassembly:
 
@@ -201,8 +201,8 @@ pop rax
 syscall
 ```
 
-On x86_64 each push writes 8 bytes and moves rsp down by 8. In this overflow layout, the end of the shellcode is just slightly below RSP (which was moved up by the epilogue and is now only seperated by 'A' padding), so those pushes can write over the shellcode bytes that have not executed
-yet and corrupt them. That is why it is necessary to add a `sub rsp, 100` instruction before the sh() shellcode to move rsp below the shellcode and avoid any corruption.
+On `x86_64` each `push` writes 8 bytes and moves `rsp` down by 8. In this overflow layout, the end of the shellcode is just slightly below `RSP` (which was moved up by the epilogue and is now only seperated by 'A' padding), so those pushes can write over the shellcode bytes that have not executed
+yet and corrupt them. That is why it is necessary to add a `sub rsp, 100` instruction before the `sh()` shellcode to move `rsp` below the shellcode and avoid any corruption.
 
 # Final Exploit
 
@@ -229,4 +229,4 @@ for i in range(1000):
 
 # Conclusion
 
-There was also a way to use pwnlib.shellcraft.amd64.cat which worked without moving rsp around at all, but gaining a full shell is always good practice. Overall, I hope this challenge was fun for everyone!
+There was also a way to use `pwnlib.shellcraft.amd64.cat` which worked without moving `rsp` around at all, but gaining a full shell is always good practice. Overall, I hope this challenge was fun for everyone!

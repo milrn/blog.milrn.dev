@@ -18,7 +18,7 @@ Cult classic was an Easy Binary Exploitation challenge from BKCTF 2026. It was t
 
 # Reversing
 
-After putting the cult-classic binary into ghidra, and disassembling main, I got the following code:
+After putting the `cult-classic` binary into ghidra, and disassembling `main`, I got the following code:
 
 ```
 
@@ -46,7 +46,7 @@ int main(void)
 }
 ```
 
-The main function seems to call another function, castSpell(), so let's decompile that too:
+The `main` function seems to call another function, `castSpell()`, so let's decompile that too:
 
 ```
 
@@ -75,7 +75,7 @@ void castSpell(char *ritual)
 
 # Analysis
 
-Due to this being a beginner challenge, the mechanism of code execution through this binary is clear. In the castSpell() function, the argument (ritual) that is passed in gets morphed into a decipheredSpell and then gets executed as code. NX was off on this challenge, so the first thing that came to mind was shellcode. Due to the large write that we have, shellcode golfing will not be neccesary. Since we control the argument that gets deciphered and then executed, we can assemble a shellcode payload with the right morphing, so that when it gets deciphered, it is valid shellcode that when executed, prints the flag.
+Due to this being a beginner challenge, the mechanism of code execution through this binary is clear. In the `castSpell()` function, the argument (`ritual`) that is passed in gets morphed into a `decipheredSpell` and then gets executed as code. NX was off on this challenge, so the first thing that came to mind was shellcode. Due to the large write that we have, shellcode golfing will not be neccesary. Since we control the argument that gets deciphered and then executed, we can assemble a shellcode payload with the right morphing, so that when it gets deciphered, it is valid shellcode that when executed, prints the flag.
 
 # Decoding the Morphing
 

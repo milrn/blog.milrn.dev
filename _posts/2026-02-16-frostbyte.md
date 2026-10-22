@@ -20,7 +20,7 @@ FrostByte was a Hard Binary Exploitation challenge from Advent of CTF 2025 (Cybe
 
 # Reversing
 
-After putting the chall binary into ghidra, and disassembling main, I got the following code:
+After putting the `chall` binary into ghidra, and disassembling `main`, I got the following code:
 
 ```
 undefined8 main(void)
@@ -68,15 +68,15 @@ PIE is off, which means that the memory addresses of all the binary sections are
 
 # Arbitrary File
 
-/proc/self/mem is a special file in Linux that allows a process to access its own memory directly. It can be used to read or write to the memory of the process, bypassing normal memory protection mechanisms. At this point, my goal was to simply get more than a 1 byte write, so I could inject shellcode into the process. So, using this special file, I just had to find a memory location to overwrite that would call the main function again, prompting for another one byte write.
+`/proc/self/mem` is a special file in Linux that allows a process to access its own memory directly. It can be used to read or write to the memory of the process, bypassing normal memory protection mechanisms. At this point, my goal was to simply get more than a 1 byte write, so I could inject shellcode into the process. So, using this special file, I just had to find a memory location to overwrite that would call the `main` function again, prompting for another one byte write.
 
 # PLT Overwrite
 
-After looking at the location of the filename.0 memory in ghidra, I confirmed that this is a unintialized global variable, which is stored in the .bss section. The .bss section is very close in memory to the GOT (Global Offset Table) section which is at a slightly lower address. The GOT section is responsible for dynamically holding the true libc address for libc functions. For example, when the puts() function is called inside a binary, it first calls the PLT (Procedure Linkage Table), which essentially checks to see if the true libc address of puts is resolved yet. If it is resolved, the PLT will jump to the libc address at the function's GOT entry; otherwise, if the function hasn't been called yet and the GOT entry has not be dynamically resolved, it prompts the linker to resolve it. This means that each PLT entry has a JMP instruction to the address of its associated GOT entry (points back to the PLT instructions to resolve itself if it hasn't been resolved). 
+After looking at the location of the `filename.0` memory in ghidra, I confirmed that this is a unintialized global variable, which is stored in the `.bss` section. The `.bss` section is very close in memory to the GOT (Global Offset Table) section which is at a slightly lower address. The GOT section is responsible for dynamically holding the true libc address for libc functions. For example, when the `puts()` function is called inside a binary, it first calls the PLT (Procedure Linkage Table), which essentially checks to see if the true libc address of `puts` is resolved yet. If it is resolved, the PLT will jump to the libc address at the function's GOT entry; otherwise, if the function hasn't been called yet and the GOT entry has not be dynamically resolved, it prompts the linker to resolve it. This means that each PLT entry has a `JMP` instruction to the address of its associated GOT entry (points back to the PLT instructions to resolve itself if it hasn't been resolved). 
 
-Now, how can this be exploited with a one byte write to call main?
+Now, how can this be exploited with a one byte write to call `main`?
 
-Due to the very large buffer allocated to the filename (0x100), extra data can be written to this buffer, including the address of the main function. We can't directly put shellcode here because it is in the .bss section which is generally not executable memory. However, since the .bss section, where this variable is located, is so close to the GOT, the addresses in these locations only differ by *1 byte.* This means if there is a JMP instruction to a GOT entry, we can simply overwrite 1 byte and get an address that points to the .bss section where the filename.0 information is stored.
+Due to the very large buffer allocated to the filename (`0x100`), extra data can be written to this buffer, including the address of the `main` function. We can't directly put shellcode here because it is in the `.bss` section which is generally not executable memory. However, since the `.bss` section, where this variable is located, is so close to the GOT, the addresses in these locations only differ by *1 byte.* This means if there is a `JMP` instruction to a GOT entry, we can simply overwrite 1 byte and get an address that points to the `.bss` section where the `filename.0` information is stored.
 
 Ex.
 
@@ -86,7 +86,7 @@ filename.0 at 004040a0
 
 These differ by two hexadecimal nibbles (1 byte)
 ```
-Lucky for us, the PLT has just that! Each PLT entry will JMP to the value stored at its GOT entry. We can simply overwrite the PLT entry JMP instruction with 1 byte that changes the address it grabs the value from to jump. It thinks it's jumping to an address stored at the GOT (true libc address), but it's actually going to jump to the pointer value stored in our filename.0 buffer.
+Lucky for us, the PLT has just that! Each PLT entry will `JMP` to the value stored at its GOT entry. We can simply overwrite the PLT entry `JMP` instruction with 1 byte that changes the address it grabs the value from to jump. It thinks it's jumping to an address stored at the GOT (true libc address), but it's actually going to jump to the pointer value stored in our `filename.0` buffer.
 
 Ex.
 
@@ -108,9 +108,9 @@ This will JMP to the pointer stored at 0x4040a0.
 
 # Calling Main
 
-We want to inject 1 byte so that it prompts us for a write and then calls main again, so we have another 1 byte write. It should keep doing this, so we have a full arbitrary write primitive. After providing the special /proc/self/mem file as our filename, we need to add a null byte to terminate the string. Then, we can write the address of main to the filename.0 buffer. This will be 15 bytes after the start of the filename.0 buffer (since the length of our actual file name + the null byte is 15 bytes).
+We want to inject 1 byte so that it prompts us for a write and then calls `main` again, so we have another 1 byte write. It should keep doing this, so we have a full arbitrary write primitive. After providing the special `/proc/self/mem` file as our filename, we need to add a null byte to terminate the string. Then, we can write the address of `main` to the `filename.0` buffer. This will be 15 bytes after the start of the `filename.0` buffer (since the length of our actual file name + the null byte is 15 bytes).
 
-To call the main address as explained in the previous section, we need to overwrite a PLT entry. The libc function that is called *after* the 1 byte write is puts() (identified by dissasembling the main function with GDB), so this is the function we should target for execution redirection.
+To call the `main` address as explained in the previous section, we need to overwrite a PLT entry. The libc function that is called *after* the 1 byte write is `puts()` (identified by dissasembling the `main` function with GDB), so this is the function we should target for execution redirection.
 
 ```
    0x00000000004013c9 <+276>:   call   0x401100 <write@plt>
@@ -127,7 +127,7 @@ To call the main address as explained in the previous section, we need to overwr
 End of assembler dump.
 ```
 
-The PLT entry of puts (found using Ghidra, unchanged because no PIE), is at 0x4010f4.
+The PLT entry of `puts` (found using Ghidra, unchanged because no PIE), is at `0x4010f4`.
 
 ```
 004010f4 ff 25 06        JMP        qword ptr [-><EXTERNAL>::puts]                   int puts(char * __s)
@@ -135,13 +135,13 @@ The PLT entry of puts (found using Ghidra, unchanged because no PIE), is at 0x40
                      -- Flow Override: CALL_RETURN (COMPUTED_CALL_TERMINATOR)
 ```
 
-The first two bytes at this address are instruction OPCODES for JMP (we won't mess with those); however, the two bytes after that are the offset from RIP that the program will jump too. Right now, that is the exact GOT entry for puts at 0x404000. We want to change this address to 0x4040a0 (filename.0) + 15 = 0x4040af. This can be done by adding 175 to the RIP offset, which changes the jump to an offset of 0x2fb5.
+The first two bytes at this address are instruction OPCODES for `JMP` (we won't mess with those); however, the two bytes after that are the offset from `RIP` that the program will jump too. Right now, that is the exact GOT entry for `puts` at `0x404000`. We want to change this address to `0x4040a0` (`filename.0`) + 15 = `0x4040af`. This can be done by adding 175 to the `RIP` offset, which changes the jump to an offset of `0x2fb5`.
 
-So, to achieve our redirection to main we just need to overwrite the third byte at this address from 0x06 to 0xb5. After this one byte write is done, we essentially have infinite writes!
+So, to achieve our redirection to `main` we just need to overwrite the third byte at this address from `0x06` to `0xb5`. After this one byte write is done, we essentially have infinite writes!
 
 # Shellcode
 
-From here, it's very easy to achieve a shell. We can generate shellcode that spawns a shell using pwntools (`asm(shellcraft.sh())`) and then write it after our call to puts() one byte at a time. When we are done writing all the shellcode, we can simply replace our overwritten byte back to 0x06, which stops our redirections, and therefore calls the shellcode stored directly after it.
+From here, it's very easy to achieve a shell. We can generate shellcode that spawns a shell using pwntools (`asm(shellcraft.sh())`) and then write it after our call to `puts()` one byte at a time. When we are done writing all the shellcode, we can simply replace our overwritten byte back to `0x06`, which stops our redirections, and therefore calls the shellcode stored directly after it.
 
 Final Exploit:
 

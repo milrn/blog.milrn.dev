@@ -19,21 +19,21 @@ Pizza Router was a Hard Binary Exploitation challenge from picoCTF 2026. It has 
 
 # Reversing
 
-This challenge was an absolute pain to reverse due to the main() function being over 500 lines long in Ghidra. Normally for pwn challenges the C source is provided, but we have to work with what we've got. So as we go through the solve process, I'll paste and explain some code blocks; the reversing itself isn't that important since this is a Binary Exploitation writeup. The one thing I will mention right now is when opening the binary in Ghidra, I immediately spotted a win() function, and realized that the goal of exploitation was simply to call that function.
+This challenge was an absolute pain to reverse due to the `main()` function being over 500 lines long in Ghidra. Normally for pwn challenges the C source is provided, but we have to work with what we've got. So as we go through the solve process, I'll paste and explain some code blocks; the reversing itself isn't that important since this is a Binary Exploitation writeup. The one thing I will mention right now is when opening the binary in Ghidra, I immediately spotted a `win()` function, and realized that the goal of exploitation was simply to call that function.
 
 # Goal
 
-After inspecting the code for a bit, the exploit path became clear. We somehow have to write over the address of fx_finish_dummy() stored on the heap with the address of win() because the code at that address gets called in the dispatch operation.
+After inspecting the code for a bit, the exploit path became clear. We somehow have to write over the address of `fx_finish_dummy()` stored on the heap with the address of `win()` because the code at that address gets called in the dispatch operation.
 
 ```
 *(code **)(puVar14 + 0x10c) = fx_finish_dummy;
 ```
 
-puVar14 is a 4 byte pointer which means each time the added value increments by 1 (0...0x10c), it will actually add 4 bytes to the puVar14 pointer instead due to how pointer arithmetic works in C. This means that this function pointer is stored 0x430 (0x10c*4) bytes after the start of the order's heap structure.
+`puVar14` is a 4 byte pointer which means each time the added value increments by 1 (0...`0x10c`), it will actually add 4 bytes to the `puVar14` pointer instead due to how pointer arithmetic works in C. This means that this function pointer is stored `0x430` (`0x10c*4`) bytes after the start of the order's heap structure.
 
 # Address Leaks
 
-After manually exploring the program for a bit I came across two operations that give valuable information. The replay operation leaks a PIE address (specifically the fx_draw_basic function address) and the receipt operation leaks a heap address (specifically the start of the order's heap structure). Using the PIE address and known function offset, I was able to calculated the PIE base.
+After manually exploring the program for a bit I came across two operations that give valuable information. The replay operation leaks a PIE address (specifically the `fx_draw_basic` function address) and the receipt operation leaks a heap address (specifically the start of the order's heap structure). Using the PIE address and known function offset, I was able to calculated the PIE base.
 
 ```
 gef➤  run
@@ -93,7 +93,7 @@ By analyzing the addresses at the heap leak, we can clearly tell this is leaking
 
 # Write Primitive
 
-However, we can't do much with those addresses without a place to overwrite with them, and luckily, there is such a place! Inside the reroute operation, the heap_idx (user supplied input) is used to determine where the reroute entry x coordinate, y coordinate, and new_cost will be placed. However, this value is not bound checked, meaning we have an out of bounds write!
+However, we can't do much with those addresses without a place to overwrite with them, and luckily, there is such a place! Inside the reroute operation, the `heap_idx` (user supplied input) is used to determine where the reroute entry x coordinate, y coordinate, and `new_cost` will be placed. However, this value is not bound checked, meaning we have an out of bounds write!
 
 ```
 do {
@@ -117,11 +117,11 @@ do {
     }
 ```
 
-This is illustrated in the decompiled code above, as you can see the iVar25 variable (which is the provided heap_idx) is being multiplied by 8 (the size of an entry containing information for a reroute) and being added to the start of the entries array in the order's larger heap structure (lVar30). We can control piVar21 because of our unbounded control over iVar25. A few lines down, there is an operation piVar21[1] = iVar27. Since integers are 4 bytes in C, indexing by one skips 4 bytes past the location we just chose and then writes iVar27 (new_cost) which is also user supplied input for the reroute operation. This is crucial, because of this 4 byte skip, we do not have a full arbitrary write primitive. The 4 bytes at index 0 are determined by iVar20 + iVar6, this is just a representation of the original route coordinates defined by add_order. Simplifying the logic, it is calculated using order->dst_y * G.width + order->dst_x. The grid width in this case is 16 (because of an implicit city1.map load). Discovering this, we can manipulate the first 4 bytes by simply changing the x and y values of the reroute.
+This is illustrated in the decompiled code above, as you can see the `iVar25` variable (which is the provided `heap_idx`) is being multiplied by 8 (the size of an entry containing information for a reroute) and being added to the start of the entries array in the order's larger heap structure (`lVar30`). We can control `piVar21` because of our unbounded control over `iVar25`. A few lines down, there is an operation `piVar21[1] = iVar27`. Since integers are 4 bytes in C, indexing by one skips 4 bytes past the location we just chose and then writes `iVar27` (`new_cost`) which is also user supplied input for the reroute operation. This is crucial, because of this 4 byte skip, we do not have a full arbitrary write primitive. The 4 bytes at index 0 are determined by `iVar20 + iVar6`, this is just a representation of the original route coordinates defined by `add_order`. Simplifying the logic, it is calculated using `order->dst_y * G.width + order->dst_x`. The grid width in this case is 16 (because of an implicit `city1.map` load). Discovering this, we can manipulate the first 4 bytes by simply changing the x and y values of the reroute.
 
 # Bounds Checking
 
-However, unlike the heap_idx, the coordinates are bounded when supplied through user input in the add_order operation.
+However, unlike the `heap_idx`, the coordinates are bounded when supplied through user input in the `add_order` operation.
 
 ```
 if (((int)(uVar7 | uVar26) < 0) ||
@@ -135,7 +135,7 @@ This code ensures the selected coordinates are not at a wall or outside of the g
 
 # dst_x Overwrite Explanation
 
-Remember those address leaks earlier? We're gonna put them to use. The order structure is located in the .bss memory section which uses the same PIE bytes for ASLR. Since we had a PIE leak and calculated the base, we can simply find the offset of the PIE base to the first element of the global orders array (ORD[0]). The first three fields of an order struct, stored in the orders array, are the order ID, the dst_x value, and the dst_y value.
+Remember those address leaks earlier? We're gonna put them to use. The order structure is located in the `.bss` memory section which uses the same PIE bytes for ASLR. Since we had a PIE leak and calculated the base, we can simply find the offset of the PIE base to the first element of the global orders array (`ORD[0]`). The first three fields of an order struct, stored in the orders array, are the order ID, the `dst_x` value, and the `dst_y` value.
 
 ```
 (&ORD)[lVar13 * 0x40e] = iVar6;
@@ -143,9 +143,9 @@ Remember those address leaks earlier? We're gonna put them to use. The order str
 *(uint *)(&DAT_00105088 + lVar30) = uVar7;
 ```
 
-This was derived from the above code snippet where lVar13 and iVar6 are the order ID number, which is set as the first field in the struct. uVar26 is the dst_x value and uVar7 is the dst_y value which are both taken from user input (add_order <dst_x> <dst_y>) after being bound checked. However, no further bound checks are performed on these values, so if we can overwrite at least dst_x with a much larger value, then we have a full arbitrary write primitive. If you don't remember, that is because the dst_x value directly controls the first 4 bytes of our 8 byte write with heap_idx (order->dst_y * G.width + order->dst_x).
+This was derived from the above code snippet where `lVar13` and `iVar6` are the order ID number, which is set as the first field in the struct. `uVar26` is the `dst_x` value and `uVar7` is the `dst_y` value which are both taken from user input (`add_order <dst_x> <dst_y>`) after being bound checked. However, no further bound checks are performed on these values, so if we can overwrite at least `dst_x` with a much larger value, then we have a full arbitrary write primitive. If you don't remember, that is because the `dst_x` value directly controls the first 4 bytes of our 8 byte write with `heap_idx` (`order->dst_y * G.width + order->dst_x`).
 
-Anyways, with our 8 byte semi-arbitrary write primitive, we can manipulate the heap_idx to write to the first element of the global orders array (ORD[0]) which we found by calculating it's fixed offset from the PIE base (20608).
+Anyways, with our 8 byte semi-arbitrary write primitive, we can manipulate the `heap_idx` to write to the first element of the global orders array (`ORD[0]`) which we found by calculating it's fixed offset from the PIE base (`20608`).
 
 ```
 ┌──(kali㉿kali)-[~/Documents/picoctf/pizza_router]
@@ -168,11 +168,11 @@ Type "help", "copyright", "credits" or "license" for more information.
 20608
 ```
 
-If we align heap_idx so that it starts the write exactly at the start of the ORD array, we will overwrite the (\*uint) dst_x field (last 4 bytes of the write) with the new_cost value that we fully control. But what do we set new_cost to? Well we want this expression: order->dst_y * G.width + order->dst_x to evaluate to the 4 least significant bytes of the win address. So, let's recall basic algebra and solve for the value of dst_x. Assuming we use *add_order 1 1* as our first order. The value of dst_y will be 1 (unchanged) and the value of G.width will be 16 which is the default width because the program loads the city1 map by default. The 32 least significant bits for the win() address will be calculated at runtime using the PIE base. It's important to note, when entering the new_cost value, it is read as a *signed* integer, which means it can be negative, and it will be converted to the appropriate *unsigned* integer on implicit cast into the dst_x field.
+If we align `heap_idx` so that it starts the write exactly at the start of the `ORD` array, we will overwrite the (\*uint) `dst_x` field (last 4 bytes of the write) with the `new_cost` value that we fully control. But what do we set `new_cost` to? Well we want this expression: `order->dst_y * G.width + order->dst_x` to evaluate to the 4 least significant bytes of the `win` address. So, let's recall basic algebra and solve for the value of `dst_x`. Assuming we use *`add_order 1 1`* as our first order. The value of `dst_y` will be 1 (unchanged) and the value of `G.width` will be 16 which is the default width because the program loads the city1 map by default. The 32 least significant bits for the `win()` address will be calculated at runtime using the PIE base. It's important to note, when entering the `new_cost` value, it is read as a *signed* integer, which means it can be negative, and it will be converted to the appropriate *unsigned* integer on implicit cast into the `dst_x` field.
 
 `dst_x = s32(32_lsb_win - 16)`
 
-Now that we have the new_cost value to set, to overwrite dst_x with, all we need is the value of heap_idx that aligns with the start of the ORD array. We can use similar algebra like before to solve this.
+Now that we have the `new_cost` value to set, to overwrite `dst_x` with, all we need is the value of `heap_idx` that aligns with the start of the `ORD` array. We can use similar algebra like before to solve this.
 
 ```
 lVar30 = *(long *)(*(long *)(&DAT_001060a8 + lVar13) + 8);
@@ -180,7 +180,7 @@ iVar25 = (int)uVar17;
 piVar21 = (int *)(lVar30 + (long)iVar25 * 8);
 ```
 
-As shown in this code snippet, we are accessing the value 8 bytes from the start of the order's heap structure and dereferencing the value there; this value is the start of the entries list in the heap structure. So, from our heap leak, we can calculate the offset of the start of the entries list by subtracting the heap leak from the address stored at offset 8. Doing this calculation, a value of 0x18 was obtained as shown below.
+As shown in this code snippet, we are accessing the value 8 bytes from the start of the order's heap structure and dereferencing the value there; this value is the start of the entries list in the heap structure. So, from our heap leak, we can calculate the offset of the start of the entries list by subtracting the heap leak from the address stored at offset 8. Doing this calculation, a value of `0x18` was obtained as shown below.
 
 ```
 0x555977300b90: 0x00000080      0x00000003      0x77300ba8      0x00005559
@@ -196,7 +196,7 @@ So, the following equation is obtained:
 
 `start_of_heap_entries_list + (heap_idx * 8) = ORD_addr`
 
-or in terms of what we have (heap_leak is the start of order's heap structure):
+or in terms of what we have (`heap_leak` is the start of order's heap structure):
 
 `(heap_leak + 0x18) + (heap_idx * 8) = PIE_base + 20608`
 
@@ -210,9 +210,9 @@ Ok that was a lot! Now most of the work is done.
 
 # Implementing the Overwrite
 
-So, we have the heap_idx to corrupt the write location, and the new_cost to corrupt the write value. One more thing we have to account for is the order ID field being changed. Since we only have a partial-write primitive, the first four bytes written (aka the ID field) will be determined by order->dst_y * G.width + order->dst_x. For the first write, this will be 1 * 16 + 1 or just 17, assuming the first order we add will be *add_order 1 1*. When trying to reference the order, we can't use ID 0 anymore, we will have to use ID 17 because when we overwrote dst_x, we also overwrote the order ID field to 17.
+So, we have the `heap_idx` to corrupt the write location, and the `new_cost` to corrupt the write value. One more thing we have to account for is the order ID field being changed. Since we only have a partial-write primitive, the first four bytes written (aka the ID field) will be determined by `order->dst_y * G.width + order->dst_x`. For the first write, this will be `1 * 16 + 1` or just 17, assuming the first order we add will be *`add_order 1 1`*. When trying to reference the order, we can't use ID 0 anymore, we will have to use ID 17 because when we overwrote `dst_x`, we also overwrote the order ID field to 17.
 
-The chain for the dst_x overwrite to change the first 4 bytes of the next reroute operation on the same order is:
+The chain for the `dst_x` overwrite to change the first 4 bytes of the next reroute operation on the same order is:
 
 ```
 add_order 1 1
@@ -221,7 +221,7 @@ reroute 0 <calculated_heap_idx> <calculated_new_cost>
 
 # Calling win()
 
-After this chain executes, we can perform another reroute operation. This time the first 4 bytes written are the 4 least significant bytes of win() (due to our dst_x overwrite), and we control the last 4 bytes using new_cost directly and make them the 4 most significant bytes of win(). For this second reroute, the heap_idx should redirect the write to the offset of the fx_finish_dummy() function that we talked about at the very beginning, which has an offset of 0x430 from the heap leak. We can solve the exact same algebra as we solved for the last write with this new destination value.
+After this chain executes, we can perform another reroute operation. This time the first 4 bytes written are the 4 least significant bytes of `win()` (due to our `dst_x` overwrite), and we control the last 4 bytes using `new_cost` directly and make them the 4 most significant bytes of `win()`. For this second reroute, the `heap_idx` should redirect the write to the offset of the `fx_finish_dummy()` function that we talked about at the very beginning, which has an offset of `0x430` from the heap leak. We can solve the exact same algebra as we solved for the last write with this new destination value.
 
 `(heap_leak + 0x18) + (heap_idx * 8) = (heap_leak + 0x430)`
 
