@@ -1,0 +1,20 @@
+{% assign article = include.post %}
+<li class="post-row">
+  <article class="post-row-main">
+    <h3><a href="{{ article.url | relative_url }}">{{ article.title }}</a></h3>
+    {% if article.description %}<p>{{ article.description }}</p>{% endif %}
+    <div class="post-row-meta">
+      <time datetime="{{ article.date | date: '%Y-%m-%d' }}">{{ article.date | date: '%b %d, %Y' }}</time>
+      {% if article.categories.size > 0 %}
+        <span class="post-row-categories">{{ article.categories | join: ', ' }}</span>
+      {% endif %}
+    </div>
+    {% if article.tags.size > 0 %}
+      <ul class="post-row-tags" aria-label="Tags for {{ article.title | escape }}">
+        {% for tag in article.tags %}
+          <li><a class="tag-chip" href="{{ '/tags/' | relative_url }}{{ tag | slugify }}/">{{ tag }}</a></li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </article>
+</li>

@@ -1,0 +1,66 @@
+title: "milrn | Blog"
+url: https://blog.milrn.dev
+canonical_origin: https://blog.milrn.dev
+baseurl: ""
+lang: en
+timezone: America/New_York
+author: milrn
+
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  input: GFM
+  header_offset: 1
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    css_class: highlight
+  footnote_backlink: "&#8617;"
+
+plugins:
+  - jekyll-archives
+  - jekyll-feed
+  - jekyll-paginate
+
+paginate: 5
+paginate_path: "/page:num/"
+
+permalink: /posts/:title/
+collections:
+  tabs:
+    output: true
+
+defaults:
+  - scope:
+      path: ""
+      type: posts
+    values:
+      layout: post
+  - scope:
+      path: ""
+      type: tabs
+    values:
+      layout: page
+      permalink: /:title/
+
+jekyll-archives:
+  enabled: [categories, tags]
+  layouts:
+    category: taxonomy
+    tag: taxonomy
+  permalinks:
+    category: /categories/:name/
+    tag: /tags/:name/
+
+feed:
+  path: feed.xml
+  excerpt_only: true
+
+exclude:
+  - LICENSE
+  - Gemfile
+  - Gemfile.lock
+  - tools
+  - .github
+  - vendor
+  - node_modules
+  - dist
