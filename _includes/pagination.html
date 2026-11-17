@@ -1,0 +1,16 @@
+{% assign paging = include.pagination %}
+{% if paging.total_pages > 1 %}
+<nav class="pagination" aria-label="{{ include.label | escape }}">
+  {% if paging.previous_url %}<a class="pagination-step" href="{{ paging.previous_url | relative_url }}">← Previous</a>{% endif %}
+  <div class="pagination-pages">
+    {% for entry in paging.pages %}
+      {% if entry.number == paging.current %}
+        <span aria-current="page">{{ entry.number }}</span>
+      {% else %}
+        <a href="{{ entry.url | relative_url }}">{{ entry.number }}</a>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% if paging.next_url %}<a class="pagination-step" href="{{ paging.next_url | relative_url }}">Next →</a>{% endif %}
+</nav>
+{% endif %}

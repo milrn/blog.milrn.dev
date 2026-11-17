@@ -12,8 +12,8 @@
     <link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
     <title>{{ site.title | escape }}</title>
     <link rel="canonical" href="{{ canonical_url | escape }}">
-    {% if paginator.previous_page_path %}<link rel="prev" href="{{ site.canonical_origin }}{{ paginator.previous_page_path }}">{% endif %}
-    {% if paginator.next_page_path %}<link rel="next" href="{{ site.canonical_origin }}{{ paginator.next_page_path }}">{% endif %}
+    {% if paginator.previous_page_path %}<link rel="prev" href="{{ paginator.previous_page_path | relative_url }}">{% endif %}
+    {% if paginator.next_page_path %}<link rel="next" href="{{ paginator.next_page_path | relative_url }}">{% endif %}
     <meta name="author" content="{{ site.author | escape }}">
     {% if page.description %}<meta name="description" content="{{ page.description | strip_html | escape }}">{% endif %}
     <meta property="og:title" content="{{ social_title | escape }}">
@@ -30,9 +30,10 @@
     <header class="site-header container">
       <a class="site-title" href="{{ '/' | relative_url }}">milrn<span>.</span></a>
       <nav aria-label="Main navigation">
-        <a href="{{ '/' | relative_url }}" {% if page.url == '/' or page.url contains '/page' %}aria-current="page"{% endif %}>Posts</a>
+        <a href="{{ '/' | relative_url }}" {% if page.url == '/' or paginator %}aria-current="page"{% endif %}>Posts</a>
         <a href="{{ '/categories/' | relative_url }}" {% if page.url contains '/categories/' %}aria-current="page"{% endif %}>Categories</a>
-        <a href="{{ '/archives/' | relative_url }}" {% if page.url == '/archives/' %}aria-current="page"{% endif %}>Archive</a>
+        <a href="{{ '/tags/' | relative_url }}" {% if page.url contains '/tags/' %}aria-current="page"{% endif %}>Tags</a>
+        <a href="{{ '/archives/' | relative_url }}" {% if page.url contains '/archives/' %}aria-current="page"{% endif %}>Archive</a>
         <a href="{{ '/about/' | relative_url }}" {% if page.url == '/about/' %}aria-current="page"{% endif %}>About</a>
       </nav>
     </header>

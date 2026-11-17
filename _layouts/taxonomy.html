@@ -16,5 +16,6 @@ layout: default
     {% endfor %}
   </ol>
   {% endif %}
+  {% include pagination.html pagination=page.pagination label=page.title %}
   <p class="back-link"><a href="{% if page.type == 'tag' %}{{ '/tags/' | relative_url }}{% else %}{{ '/categories/' | relative_url }}{% endif %}">← All {% if page.type == 'tag' %}tags{% else %}categories{% endif %}</a></p>
 </div>

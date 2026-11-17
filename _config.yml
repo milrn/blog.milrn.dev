@@ -22,7 +22,8 @@ plugins:
   - jekyll-paginate
 
 paginate: 5
-paginate_path: "/page:num/"
+paginate_path: "/:num/"
+paginate_terms: 50
 
 permalink: /posts/:title/
 collections:

@@ -3,10 +3,10 @@ layout: default
 ---
 <div class="simple-page">
   <header class="page-heading"><h1>Tags</h1></header>
-  {% assign sorted_tags = site.tags | sort_tags %}
   <ul class="tag-cloud">
-    {% for tag in sorted_tags %}
+    {% for tag in page.paged_terms %}
       <li><a class="tag-chip" href="{{ '/tags/' | relative_url }}{{ tag[0] | slugify }}/">{{ tag[0] }}</a></li>
     {% endfor %}
   </ul>
+  {% include pagination.html pagination=page.pagination label='Tag pages' %}
 </div>
